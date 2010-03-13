@@ -1,0 +1,62 @@
+<?php
+
+include_once('eduglu_group_reader.features.inc');
+
+/**
+ * Implementation of hook_block
+ * @param string $op one of "list", "view", "save" and "configure"
+ * @param integer $delta code to identify the block
+ * @param array $edit only for "save" operation
+ */
+function eduglu_group_reader_block($op = 'list', $delta = 0, $edit = array()){
+	if ($op == "list") {
+	   // Generate listing of blocks from this module, for the admin/block page
+	   $block = array();
+	   $block[0]["info"] = t('Eduglu Group Reader');
+	   return $block;
+	} 
+	else if ($op == 'view') {
+		$block = array();
+		$block['subject'] = "Add Feed to current group";
+		$block['content'] = ' 
+<form>
+<label for="feed_url">Feed URL: </label>
+<input name="feed_url" />
+</form>';
+		return $block;
+	}
+}
+
+/**
+ * Implementation of hook_nodeapi
+ * When a feed item is added by cron, this adds it to all the group
+ * that it's feed is in.
+ */ 
+function eduglu_group_reader_nodeapi ($node, $op, $a3 = NULL,
+$a4 = NULL) {
+	//dpm($op);
+	//dpm($node->type);
+  if ($op == 'insert' && $node->type == "feed_item") { // Check if new node is being inserted + if correct node type.
+    $owner_feed_nid = $node->feeds_node_item->feed_nid;
+	//dpm($owner_feed_nid . " <- Owner Feed");
+	//dpm($node);
+	// Grab the parent feed nid then the group id for the the parent feed node.
+    if (!$owner_feed_nid) {
+      return;
+    }
+    $results = db_query("SELECT group_nid
+                              FROM {og_ancestry}
+                              WHERE nid = %d", $owner_feed_nid);
+	//dpm(node_load(array('nid' => $owner_feed_nid)));
+	while($data = db_fetch_array($results)) {
+    	$group_association = array(
+    	  'nid' => $node->nid,
+    	  'group_nid' => $data['group_nid']
+    	  );
+	//	dpm($data);
+//		dpm($group_association);
+    	drupal_write_record('og_ancestry', $group_association); // Use drupal_write_record() to add the the new feed item to the og_ancestry table.
+	}
+  }
+}
+
