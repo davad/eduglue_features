@@ -17,12 +17,10 @@ function eduglu_group_reader_block($op = 'list', $delta = 0, $edit = array()){
 	} 
 	else if ($op == 'view') {
 		$block = array();
-		$block['subject'] = "Add Feed to current group";
-		$block['content'] = ' 
-<form>
-<label for="feed_url">Feed URL: </label>
-<input name="feed_url" />
-</form>';
+		$block['subject'] = "Feeds";
+		$block['content'] = '';
+		$block['content'] .= eduglu_group_reader_feed_selector();
+		$block['content'] .= drupal_get_form('eduglu_group_reader_add_feed_form');
 		return $block;
 	}
 }
@@ -34,12 +32,10 @@ function eduglu_group_reader_block($op = 'list', $delta = 0, $edit = array()){
  */ 
 function eduglu_group_reader_nodeapi ($node, $op, $a3 = NULL,
 $a4 = NULL) {
-	//dpm($op);
-	//dpm($node->type);
-  if ($op == 'insert' && $node->type == "feed_item") { // Check if new node is being inserted + if correct node type.
+  // Check if new node is being inserted + if correct node type.
+  if ($op == 'insert' && $node->type == "feed_item") { 
     $owner_feed_nid = $node->feeds_node_item->feed_nid;
-	//dpm($owner_feed_nid . " <- Owner Feed");
-	//dpm($node);
+	
 	// Grab the parent feed nid then the group id for the the parent feed node.
     if (!$owner_feed_nid) {
       return;
@@ -47,16 +43,72 @@ $a4 = NULL) {
     $results = db_query("SELECT group_nid
                               FROM {og_ancestry}
                               WHERE nid = %d", $owner_feed_nid);
-	//dpm(node_load(array('nid' => $owner_feed_nid)));
+	
+	// Use drupal_write_record() to add the the new feed item to the og_ancestry table.
 	while($data = db_fetch_array($results)) {
     	$group_association = array(
     	  'nid' => $node->nid,
     	  'group_nid' => $data['group_nid']
     	  );
-	//	dpm($data);
-//		dpm($group_association);
-    	drupal_write_record('og_ancestry', $group_association); // Use drupal_write_record() to add the the new feed item to the og_ancestry table.
+    	drupal_write_record('og_ancestry', $group_association); 
 	}
   }
+}
+
+function eduglu_group_reader_add_feed_form() {
+	$form['header'] = array(
+		'#type'  => 'fieldset',
+		'#value' => 'Add new feed'
+	);
+	$form['title'] = array(
+		'#type'  => 'textfield',
+		'#title' => 'Title',
+		'#size'  => '12'
+	);
+	$form['add_feed'] = array(
+		'#type'  => 'textfield',
+		'#title' => 'URL',
+		'#size'  => '12'
+	);
+	$form['submit'] = array('#type' => 'submit', '#value' => t('Save'));
+	return $form;
+}
+
+function eduglu_group_reader_add_feed_form_submit($form, &$form_state) {
+	$group = spaces_get_space()->group;
+	
+	//Create new feed node
+	$node = new stdClass();
+	$node->type = 'feed';
+	$node->title = $form['#post']['title'];
+	$node->feeds['FeedsHTTPFetcher']['source'] = $form['#post']['add_feed'];
+	node_save($node);
+    
+	//Associate with group
+	$group_association = array(
+      'nid' => $node->nid,
+      'group_nid' => $group->nid
+   	);
+   
+	drupal_write_record('og_ancestry', $group_association); // Use drupal_write_record() to add the the new feed item to the og_ancestry table.
+	
+
+	dpm($node);
+
+}
+
+function eduglu_group_reader_feed_selector() {
+	$feedSelector = '';
+    
+	$results = db_query("SELECT node.nid AS nid, node.title AS node_title 
+						 FROM node node  
+						 WHERE node.type in ('feed')
+                         ", $owner_feed_nid);
+	
+	while($data = db_fetch_array($results)) {
+		$feedSelector .= l($data['node_title'],"group-reader/".$data['nid']);
+		$feedSelector .= "<br />";
+	}
+	return $feedSelector;
 }
 
