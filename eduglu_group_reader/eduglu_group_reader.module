@@ -56,21 +56,23 @@ $a4 = NULL) {
 }
 
 function eduglu_group_reader_add_feed_form() {
-	$form['header'] = array(
+	$form['add'] = array(
 		'#type'  => 'fieldset',
-		'#value' => 'Add new feed'
+		'#title' => t('Add new feed'),
+   		'#collapsible' => TRUE, 
+    	'#collapsed' => TRUE,
 	);
-	$form['title'] = array(
+	$form['add']['title'] = array(
 		'#type'  => 'textfield',
-		'#title' => 'Title',
+		'#title' => t('Title'),
 		'#size'  => '12'
 	);
-	$form['add_feed'] = array(
+	$form['add']['feed'] = array(
 		'#type'  => 'textfield',
-		'#title' => 'URL',
+		'#title' => t('URL'),
 		'#size'  => '12'
 	);
-	$form['submit'] = array('#type' => 'submit', '#value' => t('Save'));
+	$form['add']['submit'] = array('#type' => 'submit', '#value' => t('Add'));
 	return $form;
 }
 
@@ -80,8 +82,8 @@ function eduglu_group_reader_add_feed_form_submit($form, &$form_state) {
 	//Create new feed node
 	$node = new stdClass();
 	$node->type = 'feed';
-	$node->title = $form['#post']['title'];
-	$node->feeds['FeedsHTTPFetcher']['source'] = $form['#post']['add_feed'];
+	$node->title = $form['#post']['add']['title'];
+	$node->feeds['FeedsHTTPFetcher']['source'] = $form['#post']['add']['feed'];
 	node_save($node);
     
 	//Associate with group
